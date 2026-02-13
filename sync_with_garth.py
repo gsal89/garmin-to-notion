@@ -30,7 +30,7 @@ def _headers():
 def _query_by_garmin_id(db_id: str, garmin_id: str):
     url = f"https://api.notion.com/v1/databases/{db_id}/query"
     payload = {
-        "filter": {"property": PROP["garmin_id"], "rich_text": {"contains": str(garmin_id)}},
+"filter": {"property": PROP["garmin_id"], "rich_text": {"contains": str(garmin_id)}}
         "page_size": 1
     }
     r = requests.post(url, headers=_headers(), data=json.dumps(payload), timeout=60)
