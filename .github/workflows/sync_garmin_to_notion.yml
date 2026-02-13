@@ -1,16 +1,17 @@
-name: Sync Garmin to Notion
+name: Sync Garmin to Notion (garth)
 
 on:
   schedule:
-    - cron: '3 1 * * *'   # 01:03 UTC = 09:03 AWST (Perth)
+    - cron: '3 1 * * *'   # 01:03 UTC = 09:03 AWST daily
   workflow_dispatch:
 
 env:
-  TZ: 'Australia/Perth'    # Affects logging and date/time inside the job only
+  TZ: 'Australia/Perth'
 
 jobs:
   sync:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -20,7 +21,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Cache pip packages
+      - name: Cache pip
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
@@ -31,12 +32,20 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          pip install -r requirements.txt
+          pip install -r requirements.txt || pip install garth requests
 
-      - name: Run script
+      - name: Restore garth session files
         env:
-          GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
-          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+          GARTH_OAUTH1_JSON: ${{ secrets.GARTH_OAUTH1_JSON }}
+          GARTH_OAUTH2_JSON: ${{ secrets.GARTH_OAUTH2_JSON }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/.garth"
+          printf '%s' "$GARTH_OAUTH1_JSON" > "$RUNNER_TEMP/.garth/oauth1_token.json"
+          printf '%s' "$GARTH_OAUTH2_JSON" > "$RUNNER_TEMP/.garth/oauth2_token.json"
+
+      - name: Sync activities to Notion
+        env:
+          GARTH_HOME: ${{ runner.temp }}/.garth   # point garth at restored session
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DB_ID: ${{ secrets.NOTION_DB_ID }}
           NOTION_PR_DB_ID: ${{ secrets.NOTION_PR_DB_ID }}
@@ -45,7 +54,4 @@ jobs:
           GARMIN_ACTIVITIES_FETCH_LIMIT: ${{ vars.GARMIN_ACTIVITIES_FETCH_LIMIT }}
           TZ: 'Australia/Perth'
         run: |
-          python garmin-activities.py
-          python personal-records.py
-          python daily-steps.py
-          python sleep-data.py
+          python sync_with_garth.py
