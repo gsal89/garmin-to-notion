@@ -12,11 +12,15 @@ jobs:
   sync:
     runs-on: ubuntu-latest
 
+    # Make everything available to all steps
     env:
-      # Garmin auth (token + creds required by the scripts)
-      GARTH_TOKEN: ${{ secrets.GARTH_TOKEN }}          # ← saved session (prevents MFA)
-      GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}        # ← required by scripts
-      GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}  # ← required by scripts
+      # Garmin: saved session + creds (creds are required by the scripts' login call)
+      GARTH_TOKEN: ${{ secrets.GARTH_TOKEN }}            # full JSON with access_token & refresh_token
+      GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
+      GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+
+      # Point python-garminconnect to the token directory explicitly
+      GARMINTOKENS: ${{ github.workspace }}/.garth       # recognised by the library to reuse tokens
 
       # Notion + settings
       NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
@@ -47,6 +51,19 @@ jobs:
         run: |
           python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
+
+      # Keep the garth session between runs (belt-and-braces)
+      - name: Cache garth session
+        uses: actions/cache@v3
+        with:
+          path: .garth
+          key: ${{ runner.os }}-garth-v1
+
+      # Seed the token file from GARTH_TOKEN so no fresh SSO/MFA is attempted
+      - name: Seed garth token (no MFA)
+        run: |
+          mkdir -p .garth
+          printf '%s' "${GARTH_TOKEN}" > .garth/token.json
 
       - name: Run activities + records
         run: |
