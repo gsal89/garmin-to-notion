@@ -12,9 +12,13 @@ jobs:
   sync:
     runs-on: ubuntu-latest
 
-    # Make secrets available as env for condition checks
     env:
-      GARTH_TOKEN: ${{ secrets.GARTH_TOKEN }}
+      # Garmin auth (token + creds required by the scripts)
+      GARTH_TOKEN: ${{ secrets.GARTH_TOKEN }}          # ← saved session (prevents MFA)
+      GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}        # ← required by scripts
+      GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}  # ← required by scripts
+
+      # Notion + settings
       NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
       NOTION_DB_ID: ${{ secrets.NOTION_DB_ID }}
       NOTION_PR_DB_ID: ${{ secrets.NOTION_PR_DB_ID }}
@@ -44,7 +48,6 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
 
-      # Uses saved Garmin session token. No fresh login. No MFA.
       - name: Run activities + records
         run: |
           python garmin-activities.py
