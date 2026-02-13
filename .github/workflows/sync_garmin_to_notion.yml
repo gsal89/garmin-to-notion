@@ -2,8 +2,9 @@ name: Sync Garmin to Notion
 
 on:
   schedule:
-    - cron: '0 1 * * *' # Daily
+    - cron: '0 1 * * *'   # 01:00 UTC daily
   workflow_dispatch:
+
 env:
   TZ: 'America/Montreal'
 
@@ -11,10 +12,11 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -31,19 +33,32 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
 
-      - name: Run script
+      # Use the saved Garmin session token (no fresh login, no MFA)
+      - name: Run activities + records
         env:
-          GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
-          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+          GARTH_TOKEN: ${{ secrets.GARTH_TOKEN }}        # ← IMPORTANT
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DB_ID: ${{ secrets.NOTION_DB_ID }}
           NOTION_PR_DB_ID: ${{ secrets.NOTION_PR_DB_ID }}
-          NOTION_STEPS_DB_ID: ${{ secrets.NOTION_STEPS_DB_ID }}
-          NOTION_SLEEP_DB_ID: ${{ secrets.NOTION_SLEEP_DB_ID }}
           GARMIN_ACTIVITIES_FETCH_LIMIT: ${{ vars.GARMIN_ACTIVITIES_FETCH_LIMIT }}
-          TZ: 'America/Montreal'
         run: |
           python garmin-activities.py
           python personal-records.py
+
+      - name: Run daily steps (only if DB set)
+        if: ${{ secrets.NOTION_STEPS_DB_ID != '' }}
+        env:
+          GARTH_TOKEN: ${{ secrets.GARTH_TOKEN }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_STEPS_DB_ID: ${{ secrets.NOTION_STEPS_DB_ID }}
+        run: |
           python daily-steps.py
+
+      - name: Run sleep (only if DB set)
+        if: ${{ secrets.NOTION_SLEEP_DB_ID != '' }}
+        env:
+          GARTH_TOKEN: ${{ secrets.GARTH_TOKEN }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_SLEEP_DB_ID: ${{ secrets.NOTION_SLEEP_DB_ID }}
+        run: |
           python sleep-data.py
