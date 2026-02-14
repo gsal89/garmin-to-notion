@@ -43,15 +43,37 @@ jobs:
           printf '%s' "$GARTH_OAUTH1_JSON" > "$RUNNER_TEMP/.garth/oauth1_token.json"
           printf '%s' "$GARTH_OAUTH2_JSON" > "$RUNNER_TEMP/.garth/oauth2_token.json"
 
-      - name: Sync activities to Notion
+      - name: Sync Activities
         env:
-          GARTH_HOME: ${{ runner.temp }}/.garth   # point garth at restored session
+          GARTH_HOME: ${{ runner.temp }}/.garth
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          NOTION_DB_ID: ${{ secrets.NOTION_DB_ID }}
-          NOTION_PR_DB_ID: ${{ secrets.NOTION_PR_DB_ID }}
-          NOTION_STEPS_DB_ID: ${{ secrets.NOTION_STEPS_DB_ID }}
-          NOTION_SLEEP_DB_ID: ${{ secrets.NOTION_SLEEP_DB_ID }}
+          NOTION_DB_ID: ${{ secrets.NOTION_DB_ID }}           # Activities DB (required)
           GARMIN_ACTIVITIES_FETCH_LIMIT: ${{ vars.GARMIN_ACTIVITIES_FETCH_LIMIT }}
-          TZ: 'Australia/Perth'
         run: |
-          python sync_with_garth.py
+          python garmin-activities.py
+
+      - name: Update Personal Records
+        env:
+          GARTH_HOME: ${{ runner.temp }}/.garth
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_PR_DB_ID: ${{ secrets.NOTION_PR_DB_ID }}     # PR DB (required for PR step)
+        run: |
+          python personal-records.py
+
+      - name: Sync Daily Steps (optional)
+        if: ${{ secrets.NOTION_STEPS_DB_ID != '' }}
+        env:
+          GARTH_HOME: ${{ runner.temp }}/.garth
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_STEPS_DB_ID: ${{ secrets.NOTION_STEPS_DB_ID }}
+        run: |
+          python daily-steps.py
+
+      - name: Sync Sleep (optional)
+        if: ${{ secrets.NOTION_SLEEP_DB_ID != '' }}
+        env:
+          GARTH_HOME: ${{ runner.temp }}/.garth
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_SLEEP_DB_ID: ${{ secrets.NOTION_SLEEP_DB_ID }}
+        run: |
+          python sleep-data.py
